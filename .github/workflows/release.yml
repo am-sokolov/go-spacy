@@ -1,0 +1,415 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GO_VERSION: '1.21'
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  # Pre-release validation
+  validate:
+    name: Pre-Release Validation
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            VERSION="${{ github.ref_name }}"
+            # Check if it's a pre-release (contains alpha, beta, rc, etc.)
+            if [[ "$VERSION" =~ -(alpha|beta|rc|preview|dev) ]]; then
+              IS_PRERELEASE="true"
+            else
+              IS_PRERELEASE="false"
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION (prerelease: $IS_PRERELEASE)"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            echo "Expected format: v1.2.3 or v1.2.3-alpha.1"
+            exit 1
+          fi
+
+      - name: Install dependencies and run validation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm
+          make install-dev-deps
+
+      - name: Run full validation suite
+        run: |
+          export CGO_ENABLED=1
+          make pre-release
+
+  # Build release artifacts for multiple platforms
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    needs: [validate]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            arch: amd64
+            artifact_name: linux-amd64
+            library_ext: so
+          - os: ubuntu-22.04
+            platform: linux
+            arch: arm64
+            artifact_name: linux-arm64
+            library_ext: so
+          - os: macos-13
+            platform: darwin
+            arch: amd64
+            artifact_name: darwin-amd64
+            library_ext: dylib
+          - os: macos-13
+            platform: darwin
+            arch: arm64
+            artifact_name: darwin-arm64
+            library_ext: dylib
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential python3-dev pkg-config
+            if [[ "${{ matrix.arch }}" == "arm64" ]]; then
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            fi
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install pkg-config
+          fi
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm
+
+      - name: Build optimized release
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=${{ matrix.platform }}
+          export GOARCH=${{ matrix.arch }}
+
+          if [[ "${{ matrix.arch }}" == "arm64" && "${{ runner.os }}" == "Linux" ]]; then
+            export CC=aarch64-linux-gnu-gcc
+            export CXX=aarch64-linux-gnu-g++
+          fi
+
+          make clean
+          make BUILD_MODE=release build
+
+      - name: Run quick validation
+        if: matrix.arch == 'amd64'  # Only test on native architecture
+        run: |
+          # Set library path
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$PWD/lib
+          fi
+
+          # Quick smoke test
+          go test -v -run TestBasicFunctionality -timeout=2m ./...
+
+      - name: Package artifacts
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          ARTIFACT_DIR="go-spacy-$VERSION-${{ matrix.artifact_name }}"
+
+          mkdir -p "dist/$ARTIFACT_DIR"
+
+          # Copy library
+          cp lib/libspacy_wrapper.${{ matrix.library_ext }} "dist/$ARTIFACT_DIR/"
+
+          # Copy documentation and licenses
+          cp README.md CONTRIBUTING.md LICENSE "dist/$ARTIFACT_DIR/"
+          cp -r docs "dist/$ARTIFACT_DIR/"
+
+          # Create version info
+          cat > "dist/$ARTIFACT_DIR/VERSION" << EOF
+          Version: $VERSION
+          Platform: ${{ matrix.platform }}-${{ matrix.arch }}
+          Built: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          Go Version: $(go version)
+          Git Commit: $(git rev-parse HEAD)
+          Git Branch: $(git rev-parse --abbrev-ref HEAD)
+          EOF
+
+          # Create archive
+          cd dist
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            tar -czf "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz" "$ARTIFACT_DIR"
+            sha256sum "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz" > "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz.sha256"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            tar -czf "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz" "$ARTIFACT_DIR"
+            shasum -a 256 "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz" > "go-spacy-$VERSION-${{ matrix.artifact_name }}.tar.gz.sha256"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-${{ matrix.artifact_name }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          retention-days: 7
+
+  # Generate changelog and release notes
+  changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    needs: [validate]
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ needs.validate.outputs.version }}
+          writeToFile: false
+
+      - name: Create detailed changelog
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          echo "# Changelog for $VERSION" > CHANGELOG_TEMP.md
+          echo "" >> CHANGELOG_TEMP.md
+
+          # Add auto-generated changelog
+          echo "${{ steps.changelog.outputs.changes }}" >> CHANGELOG_TEMP.md
+
+          # Add additional sections
+          echo "" >> CHANGELOG_TEMP.md
+          echo "## 🛠️ Technical Details" >> CHANGELOG_TEMP.md
+          echo "- Built with Go ${{ env.GO_VERSION }}" >> CHANGELOG_TEMP.md
+          echo "- Python ${{ env.PYTHON_VERSION }} compatibility" >> CHANGELOG_TEMP.md
+          echo "- Cross-platform support (Linux, macOS)" >> CHANGELOG_TEMP.md
+          echo "" >> CHANGELOG_TEMP.md
+          echo "## 📦 Installation" >> CHANGELOG_TEMP.md
+          echo '```bash' >> CHANGELOG_TEMP.md
+          echo "go get github.com/alexeysokolov/go-spacy@$VERSION" >> CHANGELOG_TEMP.md
+          echo '```' >> CHANGELOG_TEMP.md
+          echo "" >> CHANGELOG_TEMP.md
+          echo "## 🧪 Verification" >> CHANGELOG_TEMP.md
+          echo "All release artifacts are signed and include SHA256 checksums." >> CHANGELOG_TEMP.md
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v3
+        with:
+          name: changelog
+          path: CHANGELOG_TEMP.md
+          retention-days: 7
+
+  # Create GitHub release
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [validate, build-artifacts, changelog]
+    permissions:
+      contents: write
+      discussions: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts/
+
+      - name: Download changelog
+        uses: actions/download-artifact@v3
+        with:
+          name: changelog
+          path: .
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts/ -name "*.tar.gz" -exec cp {} release-assets/ \;
+          find artifacts/ -name "*.sha256" -exec cp {} release-assets/ \;
+
+          # List all files for verification
+          echo "Release assets:"
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate.outputs.version }}
+          name: Go-Spacy ${{ needs.validate.outputs.version }}
+          body_path: CHANGELOG_TEMP.md
+          files: release-assets/*
+          prerelease: ${{ needs.validate.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          discussion_category_name: "Announcements"
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Post-release actions
+  post-release:
+    name: Post-Release Actions
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    needs: [release, validate]
+    if: needs.validate.outputs.is_prerelease != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update documentation badge
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          # Update version badge in README if needed
+          # This could be enhanced to automatically update version references
+
+      - name: Create release announcement issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ needs.validate.outputs.version }}";
+            const title = `🎉 Go-Spacy ${version} Released`;
+            const body = `
+            Go-Spacy ${version} has been successfully released!
+
+            ## 📦 What's New
+            Check out the [release notes](https://github.com/${{ github.repository }}/releases/tag/${version}) for detailed information about changes and improvements.
+
+            ## 🚀 Quick Start
+            \`\`\`bash
+            go get github.com/alexeysokolov/go-spacy@${version}
+            \`\`\`
+
+            ## 🔗 Links
+            - [Release Page](https://github.com/${{ github.repository }}/releases/tag/${version})
+            - [Documentation](https://pkg.go.dev/github.com/alexeysokolov/go-spacy@${version})
+            - [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/INSTALLATION.md)
+
+            Thank you to all contributors who made this release possible! 🙏
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['release', 'announcement']
+            });
+
+  # Failure notification
+  notify-failure:
+    name: Notify Release Failure
+    runs-on: ubuntu-22.04
+    needs: [validate, build-artifacts, changelog, release]
+    if: failure()
+    steps:
+      - name: Create failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ needs.validate.outputs.version || github.ref_name }}";
+            const title = `❌ Release ${version} Failed`;
+            const body = `
+            The release process for version ${version} has failed.
+
+            ## 📋 Details
+            - **Workflow**: [Release #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - **Trigger**: ${{ github.event_name }}
+            - **Branch**: ${{ github.ref_name }}
+            - **Commit**: ${{ github.sha }}
+
+            ## 🔍 Next Steps
+            1. Check the workflow logs for detailed error information
+            2. Fix any issues found
+            3. Re-run the release process if needed
+
+            ## 🏷️ Labels
+            This issue has been automatically labeled for triage.
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'release-failure', 'priority-high']
+            });

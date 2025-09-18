@@ -1,0 +1,102 @@
+name: ❓ Question
+description: Ask a question about usage, setup, or general help
+title: "[Question]: "
+labels: ["question", "help-wanted"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question! ❓
+
+        Before submitting, please check:
+        - [Documentation](https://github.com/alexeysokolov/go-spacy/tree/main/docs)
+        - [API Reference](https://pkg.go.dev/github.com/alexeysokolov/go-spacy)
+        - [Existing discussions and issues](https://github.com/alexeysokolov/go-spacy/issues)
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What is your question about?
+      options:
+        - Installation and setup
+        - Basic usage and API
+        - Performance and optimization
+        - Multi-language support
+        - Integration with other tools
+        - Error troubleshooting
+        - Best practices
+        - Contributing and development
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: Please describe your question in detail...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and Background
+      description: Provide any relevant context about your use case or situation.
+      placeholder: |
+        Help us understand your situation:
+        - What are you trying to accomplish?
+        - What have you tried so far?
+        - Any constraints or requirements?
+
+  - type: textarea
+    id: code-example
+    attributes:
+      label: Code Example (if applicable)
+      description: If your question involves code, please provide an example.
+      render: go
+      placeholder: |
+        package main
+
+        import (
+            "fmt"
+            "github.com/alexeysokolov/go-spacy"
+        )
+
+        func main() {
+            // Your code example here
+        }
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Details
+      description: What's your environment? (OS, Go version, Python version, etc.)
+      placeholder: "e.g., Ubuntu 22.04, Go 1.21, Python 3.9, Spacy 3.4"
+
+  - type: textarea
+    id: research
+    attributes:
+      label: What You've Already Tried
+      description: What research or attempts have you made to solve this yourself?
+      placeholder: |
+        Please let us know what you've already tried:
+        - Documentation sections you've read
+        - Solutions you've attempted
+        - Similar issues you've found
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and discussions for similar questions
+          required: true
+        - label: I have checked the documentation and API reference
+          required: true
+        - label: I have provided sufficient context about my question
+          required: true

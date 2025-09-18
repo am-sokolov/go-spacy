@@ -1,0 +1,210 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! ✨
+
+        Before submitting, please check if a similar request already exists.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see.
+      placeholder: Briefly describe the feature...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What type of feature is this?
+      options:
+        - Core NLP functionality
+        - Performance optimization
+        - New language support
+        - API enhancement
+        - Documentation improvement
+        - Developer experience
+        - Testing and quality
+        - Build and deployment
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and Use Case
+      description: Why is this feature needed? What problem does it solve?
+      placeholder: |
+        Explain why this feature would be valuable:
+        - What problem does it solve?
+        - How would it improve the user experience?
+        - What use cases would it enable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: detailed-description
+    attributes:
+      label: Detailed Description
+      description: Provide a detailed description of how the feature should work.
+      placeholder: |
+        Describe the feature in detail:
+        - How should it work?
+        - What should the API look like?
+        - What are the expected inputs and outputs?
+        - Any specific behavior requirements?
+
+  - type: textarea
+    id: api-design
+    attributes:
+      label: Proposed API Design
+      description: If applicable, suggest what the API should look like.
+      render: go
+      placeholder: |
+        // Example API design
+        func (n *NLP) NewFeature(input string, options *FeatureOptions) (*FeatureResult, error) {
+            // Implementation details...
+            return &FeatureResult{}, nil
+        }
+
+        type FeatureOptions struct {
+            // Configuration options...
+        }
+
+        type FeatureResult struct {
+            // Result fields...
+        }
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Usage Examples
+      description: Provide examples of how this feature would be used.
+      render: go
+      placeholder: |
+        // Example usage
+        nlp, _ := spacy.NewNLP("en_core_web_sm")
+        defer nlp.Close()
+
+        result, err := nlp.NewFeature("example input", &spacy.FeatureOptions{
+            // Options...
+        })
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        // Use result...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would be helpful
+        - High - Important for my use case
+        - Critical - Blocking my project
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: |
+        Describe any alternatives you've considered:
+        - Existing workarounds you're using
+        - Other libraries or approaches
+        - Different API designs
+
+  - type: textarea
+    id: implementation-ideas
+    attributes:
+      label: Implementation Ideas
+      description: Do you have any ideas about how this could be implemented?
+      placeholder: |
+        If you have implementation ideas, please share them:
+        - Which files/functions might need changes?
+        - Dependencies that might be required
+        - Potential challenges or considerations
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Estimated Complexity
+      description: How complex do you think this feature would be to implement?
+      options:
+        - Simple - Minor change or addition
+        - Medium - Moderate development effort
+        - Complex - Significant development required
+        - Major - Large architectural changes needed
+        - Unknown - Not sure about complexity
+
+  - type: checkboxes
+    id: related-areas
+    attributes:
+      label: Related Areas
+      description: Which areas of the project would this feature affect?
+      options:
+        - label: Core Go API
+        - label: C++ bridge layer
+        - label: Python integration
+        - label: Documentation
+        - label: Testing
+        - label: Build system
+        - label: Performance
+        - label: Memory usage
+        - label: Thread safety
+        - label: Error handling
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or references about the feature request.
+      placeholder: |
+        Any additional information:
+        - Links to related discussions or issues
+        - References to similar features in other libraries
+        - Academic papers or specifications
+        - Performance considerations
+        - Compatibility concerns
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be interested in contributing to this feature?
+      options:
+        - label: I would like to implement this feature myself
+        - label: I can help with testing and feedback
+        - label: I can contribute to documentation
+        - label: I can help with code review
+        - label: I can provide use case guidance
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following before submitting your feature request.
+      options:
+        - label: I have searched existing issues for similar feature requests
+          required: true
+        - label: I have provided a clear description of the feature and its benefits
+          required: true
+        - label: I have considered alternative solutions and explained why this approach is preferred
+          required: false
+        - label: I have provided usage examples that demonstrate the feature
+          required: false

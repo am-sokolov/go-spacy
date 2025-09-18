@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Benchmark tokenization with different text sizes
@@ -182,6 +183,217 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 	}
 }
 
+// Benchmark different language processing
+func BenchmarkMultiLanguage(b *testing.B) {
+	languages := []struct {
+		name    string
+		model   string
+		text    string
+	}{
+		{"English", "en_core_web_sm", "The quick brown fox jumps over the lazy dog."},
+		{"German", "de_core_news_sm", "Der schnelle braune Fuchs springt über den faulen Hund."},
+		{"French", "fr_core_news_sm", "Le renard brun rapide saute par-dessus le chien paresseux."},
+		{"Spanish", "es_core_news_sm", "El rápido zorro marrón salta sobre el perro perezoso."},
+	}
+
+	for _, lang := range languages {
+		if !isModelInstalled(lang.model) {
+			continue // Skip if model not installed
+		}
+
+		b.Run(lang.name, func(b *testing.B) {
+			nlp, err := NewNLP(lang.model)
+			if err != nil {
+				b.Fatalf("Failed to create %s NLP: %v", lang.name, err)
+			}
+			defer nlp.Close()
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = nlp.Tokenize(lang.text)
+			}
+			b.ReportMetric(float64(len(lang.text)), "chars/op")
+		})
+	}
+}
+
+// Benchmark advanced features
+func BenchmarkAdvancedFeatures(b *testing.B) {
+	nlp, err := NewNLP("en_core_web_sm")
+	if err != nil {
+		b.Fatalf("Failed to create NLP: %v", err)
+	}
+	defer nlp.Close()
+
+	text := "Apple Inc. is an American multinational technology company."
+
+	b.Run("NounChunks", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = nlp.GetNounChunks(text)
+		}
+	})
+
+	b.Run("Vectors", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = nlp.GetVector(text)
+		}
+	})
+
+	b.Run("Morphology", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = nlp.GetMorphology(text)
+		}
+	})
+
+	b.Run("Similarity", func(b *testing.B) {
+		text2 := "Microsoft Corporation is a technology company."
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = nlp.Similarity(text, text2)
+		}
+	})
+}
+
+// Benchmark throughput with different batch sizes
+func BenchmarkThroughput(b *testing.B) {
+	nlp, err := NewNLP("en_core_web_sm")
+	if err != nil {
+		b.Fatalf("Failed to create NLP: %v", err)
+	}
+	defer nlp.Close()
+
+	// Create texts of different lengths
+	shortText := "Short sentence."
+	mediumText := "This is a medium length sentence with several words and some complexity."
+	longText := strings.Repeat("This is a long text. ", 50)
+
+	texts := []struct {
+		name string
+		text string
+	}{
+		{"Short", shortText},
+		{"Medium", mediumText},
+		{"Long", longText},
+	}
+
+	for _, tt := range texts {
+		b.Run(tt.name, func(b *testing.B) {
+			start := time.Now()
+			totalTokens := 0
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				tokens := nlp.Tokenize(tt.text)
+				totalTokens += len(tokens)
+			}
+
+			elapsed := time.Since(start)
+			if elapsed > 0 {
+				tokensPerSec := float64(totalTokens) / elapsed.Seconds()
+				b.ReportMetric(tokensPerSec, "tokens/sec")
+			}
+		})
+	}
+}
+
+// Benchmark model initialization time
+func BenchmarkModelInitialization(b *testing.B) {
+	models := []string{
+		"en_core_web_sm",
+		"en_core_web_md",
+		"en_core_web_lg",
+	}
+
+	for _, model := range models {
+		if !isModelInstalled(model) {
+			continue
+		}
+
+		b.Run(model, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				nlp, err := NewNLP(model)
+				if err != nil {
+					b.Fatal(err)
+				}
+				nlp.Close()
+			}
+		})
+	}
+}
+
+// Benchmark concurrent processing
+func BenchmarkConcurrentProcessing(b *testing.B) {
+	nlp, err := NewNLP("en_core_web_sm")
+	if err != nil {
+		b.Fatalf("Failed to create NLP: %v", err)
+	}
+	defer nlp.Close()
+
+	text := "The quick brown fox jumps over the lazy dog."
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			tokens := nlp.Tokenize(text)
+			if len(tokens) == 0 {
+				b.Fatal("No tokens")
+			}
+		}
+	})
+}
+
+// Benchmark text complexity impact
+func BenchmarkTextComplexity(b *testing.B) {
+	nlp, err := NewNLP("en_core_web_sm")
+	if err != nil {
+		b.Fatalf("Failed to create NLP: %v", err)
+	}
+	defer nlp.Close()
+
+	texts := []struct {
+		name       string
+		text       string
+		complexity string
+	}{
+		{
+			"Simple",
+			"The cat sat.",
+			"low",
+		},
+		{
+			"Moderate",
+			"The sophisticated algorithm efficiently processed the complex dataset.",
+			"medium",
+		},
+		{
+			"Complex",
+			"Notwithstanding the aforementioned considerations, the implementation of quantum computing paradigms necessitates a fundamental reconceptualization of traditional computational methodologies.",
+			"high",
+		},
+		{
+			"Technical",
+			"The HTTP/2 protocol utilizes binary framing layers enabling multiplexed streams, prioritization mechanisms, and server push capabilities, achieving sub-100ms latencies.",
+			"technical",
+		},
+	}
+
+	for _, tt := range texts {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = nlp.Tokenize(tt.text)
+				_ = nlp.ExtractEntities(tt.text)
+				_ = nlp.POSTag(tt.text)
+			}
+			b.ReportMetric(float64(len(tt.text)), "chars")
+			b.SetBytes(int64(len(tt.text)))
+		})
+	}
+}
+
 // Benchmark parallel processing
 func BenchmarkParallel(b *testing.B) {
 	nlp, err := NewNLP("en_core_web_sm")
@@ -248,33 +460,6 @@ func BenchmarkCachingEffects(b *testing.B) {
 			_ = nlp.Tokenize(text)
 		}
 	})
-}
-
-// Benchmark throughput
-func BenchmarkThroughput(b *testing.B) {
-	nlp, err := NewNLP("en_core_web_sm")
-	if err != nil {
-		b.Fatalf("Failed to create NLP: %v", err)
-	}
-	defer nlp.Close()
-
-	// Create a corpus of text
-	corpus := strings.Repeat("The natural language processing system analyzes text efficiently. ", 1000)
-	corpusBytes := len(corpus)
-
-	b.ResetTimer()
-	start := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			tokens := nlp.Tokenize(corpus)
-			if len(tokens) == 0 {
-				b.Fatal("No tokens")
-			}
-		}
-	})
-
-	elapsed := start.T.Seconds()
-	throughput := float64(corpusBytes) * float64(start.N) / elapsed / 1024 / 1024
-	b.Logf("Throughput: %.2f MB/s", throughput)
 }
 
 // Compare performance of different functions

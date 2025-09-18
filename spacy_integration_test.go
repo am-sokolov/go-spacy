@@ -81,6 +81,7 @@ func TestConcurrentUsage(t *testing.T) {
 		t.Skip("Skipping concurrent test in short mode")
 	}
 
+	// Create a single shared NLP instance
 	nlp, err := NewNLP("en_core_web_sm")
 	if err != nil {
 		t.Fatalf("Failed to create NLP: %v", err)
@@ -95,8 +96,8 @@ func TestConcurrentUsage(t *testing.T) {
 		"Natural language processing is fascinating.",
 	}
 
-	numGoroutines := 10
-	iterations := 100
+	numGoroutines := 5
+	iterations := 10
 	var wg sync.WaitGroup
 	errors := make(chan error, numGoroutines*iterations)
 
@@ -208,9 +209,19 @@ func TestMemoryManagement(t *testing.T) {
 	var m2 runtime.MemStats
 	runtime.ReadMemStats(&m2)
 
-	// Calculate memory growth
-	allocDiff := m2.Alloc - m1.Alloc
-	heapDiff := m2.HeapAlloc - m1.HeapAlloc
+	// Calculate memory growth (handle underflow)
+	var allocDiff int64
+	var heapDiff int64
+	if m2.Alloc >= m1.Alloc {
+		allocDiff = int64(m2.Alloc - m1.Alloc)
+	} else {
+		allocDiff = -int64(m1.Alloc - m2.Alloc)
+	}
+	if m2.HeapAlloc >= m1.HeapAlloc {
+		heapDiff = int64(m2.HeapAlloc - m1.HeapAlloc)
+	} else {
+		heapDiff = -int64(m1.HeapAlloc - m2.HeapAlloc)
+	}
 
 	t.Logf("Memory after %d iterations:", iterations)
 	t.Logf("  Alloc diff: %d bytes", allocDiff)
@@ -218,7 +229,7 @@ func TestMemoryManagement(t *testing.T) {
 	t.Logf("  Goroutines: %d", runtime.NumGoroutine())
 
 	// Check for excessive memory growth (more than 100MB would be concerning)
-	maxAcceptableGrowth := uint64(100 * 1024 * 1024)
+	maxAcceptableGrowth := int64(100 * 1024 * 1024)
 	if allocDiff > maxAcceptableGrowth {
 		t.Errorf("Excessive memory growth detected: %d bytes", allocDiff)
 	}

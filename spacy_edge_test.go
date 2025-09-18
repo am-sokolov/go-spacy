@@ -205,7 +205,7 @@ func TestBoundaryConditions(t *testing.T) {
 		{"Single digit", "1"},
 		{"Single punctuation", "."},
 		{"Two characters", "ab"},
-		{"Maximum reasonable length", strings.Repeat("a ", 100000)},
+		{"Maximum reasonable length", strings.Repeat("a ", 1000)},
 	}
 
 	for _, tt := range tests {

@@ -1,0 +1,518 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Mondays at 2 AM UTC
+
+env:
+  GO_VERSION: '1.21'
+  PYTHON_VERSION: '3.9'
+  CACHE_VERSION: 'v1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Code quality and security checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ env.CACHE_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ env.CACHE_VERSION }}-
+
+      - name: Install development dependencies
+        run: make install-dev-deps
+
+      - name: Check formatting
+        run: make check-format
+
+      - name: Run linters
+        run: make lint
+
+      - name: Run security scan
+        run: make security-scan
+
+  # Multi-platform and multi-version testing
+  test-matrix:
+    name: Test Matrix
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    needs: [code-quality]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04, macos-13, macos-12]
+        go-version: ['1.19', '1.20', '1.21']
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+        exclude:
+          # Reduce matrix size for efficiency
+          - os: macos-13
+            go-version: '1.19'
+          - os: macos-12
+            go-version: '1.19'
+          - os: ubuntu-20.04
+            python-version: '3.11'
+          - os: macos-13
+            python-version: '3.8'
+          - os: macos-12
+            python-version: '3.8'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-
+
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config
+          # Ensure Python dev headers are available
+          python3 -c "import distutils.util; print('Python dev headers OK')"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install spacy
+          python -m spacy download en_core_web_sm
+
+      - name: Build project
+        run: |
+          export CGO_ENABLED=1
+          make clean
+          make build
+
+      - name: Run tests
+        run: |
+          # Set library path based on OS
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$PWD/lib
+          fi
+          make test-unit
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-go${{ matrix.go-version }}-py${{ matrix.python-version }}
+          path: |
+            coverage.out
+            *.test
+            *.log
+          retention-days: 3
+
+  # Test coverage analysis
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    needs: [code-quality]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm en_core_web_md
+
+      - name: Build and test with coverage
+        run: |
+          export CGO_ENABLED=1
+          make clean build
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          make test-coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-go-spacy
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 30
+
+  # Performance benchmarks
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    needs: [code-quality]
+    if: github.event_name != 'schedule'  # Skip for scheduled builds
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for benchmark comparison
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm en_core_web_md
+
+      - name: Build project
+        run: |
+          export CGO_ENABLED=1
+          make clean build
+
+      - name: Run benchmarks
+        run: |
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          make test-benchmark | tee benchmark-results.txt
+
+      - name: Compare benchmarks (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Install benchcmp for comparison
+          go install golang.org/x/tools/cmd/benchcmp@latest
+
+          # Get main branch benchmarks
+          git fetch origin main:main
+          git checkout main
+          make clean build
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          make test-benchmark > benchmark-main.txt
+
+          # Switch back to PR branch and compare
+          git checkout ${{ github.head_ref }}
+          benchcmp benchmark-main.txt benchmark-results.txt > benchmark-comparison.txt || true
+
+          # Post results as comment (would need additional setup for PR comments)
+          echo "Benchmark comparison saved to benchmark-comparison.txt"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: |
+            benchmark-results.txt
+            benchmark-comparison.txt
+          retention-days: 30
+
+  # Multi-language model testing
+  multilang-test:
+    name: Multi-language Testing
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    needs: [code-quality]
+    if: contains(github.event.head_commit.message, '[test-multilang]') || github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies and models
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+          pip install --upgrade pip spacy
+
+          # Install multiple language models
+          python -m spacy download en_core_web_sm
+          python -m spacy download de_core_news_sm
+          python -m spacy download fr_core_news_sm
+          python -m spacy download es_core_news_sm
+
+      - name: Build and test
+        run: |
+          export CGO_ENABLED=1
+          make clean build
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          go test -v -timeout=20m -run TestMultiLanguage ./...
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [code-quality]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run Gosec Security Scanner
+        uses: securecodewarrior/github-action-gosec@master
+        with:
+          args: '-fmt sarif -out gosec.sarif ./...'
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: gosec.sarif
+
+      - name: Run Govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # Build verification
+  build-verification:
+    name: Build Verification
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    needs: [test-matrix]
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-13]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential python3-dev pkg-config
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install pkg-config
+          fi
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm
+
+      - name: Build release version
+        run: |
+          export CGO_ENABLED=1
+          make clean
+          make release
+
+      - name: Verify build artifacts
+        run: |
+          # Check that library was built
+          ls -la lib/
+
+          # Check that library can be loaded
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            ldd lib/libspacy_wrapper.so
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            otool -L lib/libspacy_wrapper.dylib
+            export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$PWD/lib
+          fi
+
+          # Quick smoke test
+          go test -v -run TestBasicFunctionality ./...
+
+  # Integration test
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    needs: [build-verification]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
+          pip install --upgrade pip spacy
+          python -m spacy download en_core_web_sm en_core_web_md
+
+      - name: Run integration tests
+        run: |
+          export CGO_ENABLED=1
+          make clean build
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/lib
+          make test-integration
+
+  # Dependency update check
+  dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Check for Go dependency updates
+        run: |
+          go list -u -m all
+          go mod tidy
+
+          # Check if go.mod or go.sum changed
+          if ! git diff --quiet go.mod go.sum; then
+            echo "Dependencies can be updated"
+            git diff go.mod go.sum
+          fi
+
+      - name: Run tests with latest dependencies
+        run: |
+          go clean -modcache
+          export CGO_ENABLED=1
+          make install-deps
+          make clean build test-unit
+
+  # Summary job for branch protection
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-22.04
+    needs: [code-quality, test-matrix, coverage, build-verification]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.code-quality.result }}" != "success" ]]; then
+            echo "Code quality checks failed"
+            exit 1
+          fi
+          if [[ "${{ needs.test-matrix.result }}" != "success" ]]; then
+            echo "Test matrix failed"
+            exit 1
+          fi
+          if [[ "${{ needs.coverage.result }}" != "success" ]]; then
+            echo "Coverage analysis failed"
+            exit 1
+          fi
+          if [[ "${{ needs.build-verification.result }}" != "success" ]]; then
+            echo "Build verification failed"
+            exit 1
+          fi
+          echo "All CI checks passed successfully!"
