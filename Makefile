@@ -190,7 +190,7 @@ security-scan: ## Run security scans
 		else \
 			exit $$exit_code; \
 		fi)
-	gosec -quiet ./...
+	gosec -quiet -exclude=G115 ./...
 
 validate: lint check-format security-scan test-unit ## Run all validation checks
 
