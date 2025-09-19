@@ -134,7 +134,7 @@ func runAutomaticBuild() error {
 		if runtime.GOOS == "windows" {
 			// Try mingw32-make first, then make
 			for _, makeCmd := range []string{"mingw32-make", "make"} {
-				cmd := exec.Command(makeCmd, "lib") // #nosec G204 - makeCmd is from a fixed whitelist
+				cmd := exec.Command(makeCmd, "lib") //nolint:gosec // makeCmd is from a fixed whitelist
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				if err := cmd.Run(); err == nil {
@@ -180,7 +180,7 @@ func runScript(script string) error {
 	case "windows":
 		// Try PowerShell first, then fallback
 		for _, shell := range []string{"powershell", "pwsh"} {
-			cmd := exec.Command(shell, "-ExecutionPolicy", "Bypass", "-File", script) // #nosec G204 - shell is from a fixed whitelist
+			cmd := exec.Command(shell, "-ExecutionPolicy", "Bypass", "-File", script) //nolint:gosec // shell is from a fixed whitelist
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err == nil {

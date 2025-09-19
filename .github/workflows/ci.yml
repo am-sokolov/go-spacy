@@ -17,7 +17,7 @@ on:
     - cron: '0 2 * * 1'  # Weekly on Mondays at 2 AM UTC
 
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION: '1.22'
   PYTHON_VERSION: '3.9'
   CACHE_VERSION: 'v1'
 
@@ -44,7 +44,7 @@ jobs:
           cache: true
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -75,7 +75,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-20.04, macos-13, macos-12]
-        go-version: ['1.19', '1.20', '1.21']
+        go-version: ['1.20', '1.21', '1.22']
         python-version: ['3.8', '3.9', '3.10', '3.11']
         exclude:
           # Reduce matrix size for efficiency
@@ -106,7 +106,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache Python packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
@@ -149,7 +149,7 @@ jobs:
           make test-unit
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.os }}-go${{ matrix.go-version }}-py${{ matrix.python-version }}
@@ -195,7 +195,7 @@ jobs:
           make test-coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
           flags: unittests
@@ -204,7 +204,7 @@ jobs:
           verbose: true
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: |
@@ -274,7 +274,7 @@ jobs:
           echo "Benchmark comparison saved to benchmark-comparison.txt"
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: |
@@ -349,7 +349,7 @@ jobs:
           args: '-fmt sarif -out gosec.sarif ./...'
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: gosec.sarif
