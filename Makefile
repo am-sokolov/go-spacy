@@ -8,25 +8,32 @@ BUILD_TIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
+# Detect OS first (needed for compiler selection)
+UNAME_S := $(shell uname -s)
+
 # Build configuration
 # Allow overriding CC and CXX from environment (for cross-compilation)
-CC ?= g++
+# Use c++ compiler to ensure proper C++ standard library linking
+ifeq ($(UNAME_S),Darwin)
+    CC ?= c++
+else
+    CC ?= g++
+endif
 CXX ?= $(CC)
 GO_VERSION = 1.22
 PYTHON_VERSION = 3
 # Use pkg-config for better portability
 # Falls back to python-config if pkg-config is not available
 PYTHON_PKG_CONFIG = $(shell pkg-config --exists python3-embed 2>/dev/null && echo "pkg-config python3-embed" || pkg-config --exists python3 2>/dev/null && echo "pkg-config python3 --embed" || echo "python3-config")
-
-# Detect OS
-UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     SHARED_EXT = so
-    LDFLAGS_EXTRA = -Wl,-soname,libspacy_wrapper.$(SHARED_EXT)
+    # Add C++ standard library linking on Linux
+    LDFLAGS_EXTRA = -Wl,-soname,libspacy_wrapper.$(SHARED_EXT) -lstdc++
 endif
 ifeq ($(UNAME_S),Darwin)
     SHARED_EXT = dylib
-    LDFLAGS_EXTRA = -install_name @rpath/libspacy_wrapper.$(SHARED_EXT)
+    # Add C++ standard library linking on macOS
+    LDFLAGS_EXTRA = -install_name @rpath/libspacy_wrapper.$(SHARED_EXT) -stdlib=libc++ -lc++
 endif
 
 # Paths and files
@@ -41,7 +48,12 @@ SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 
 # Compiler flags
-CFLAGS_BASE = -Wall -Wextra -fPIC -std=c++17 -I$(INCLUDE_DIR)
+ifeq ($(UNAME_S),Darwin)
+    # On macOS, explicitly use libc++ standard library
+    CFLAGS_BASE = -Wall -Wextra -fPIC -std=c++17 -stdlib=libc++ -I$(INCLUDE_DIR)
+else
+    CFLAGS_BASE = -Wall -Wextra -fPIC -std=c++17 -I$(INCLUDE_DIR)
+endif
 CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0 -DDEBUG
 # Use -march=native only for local builds, not in CI (causes compatibility issues)
 ifdef GITHUB_ACTIONS
@@ -116,11 +128,11 @@ NC = \033[0m # No Color
 .DEFAULT_GOAL := all
 
 # Phony targets
-.PHONY: all build clean test test-unit test-integration test-benchmark test-coverage \
+.PHONY: all build build-all build-go clean test test-unit test-integration test-benchmark test-coverage \
         lint format check-format security-scan install-deps install-dev-deps \
         docker-build docker-test docker-clean examples docs serve-docs \
         release pre-release version help init validate ci pre-commit \
-        setup-githooks clean-cache profile
+        setup-githooks clean-cache profile debug debug-test linux darwin info
 
 # Help target
 help: ## Show this help message
