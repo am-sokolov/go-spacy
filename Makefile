@@ -110,7 +110,9 @@ init: ## Initialize development environment
 	@$(MAKE) setup-githooks
 	@echo "$(GREEN)Development environment ready!$(NC)"
 
-build: $(TARGET) build-go ## Build C++ library and Go code
+build: build-all ## Build everything (alias for build-all)
+
+build-all: $(TARGET) build-go ## Build C++ library and Go code
 
 $(TARGET): $(OBJS) | $(LIB_DIR)
 	@echo "$(GREEN)Linking shared library...$(NC)"
@@ -118,6 +120,7 @@ $(TARGET): $(OBJS) | $(LIB_DIR)
 	@echo "$(GREEN)Built: $@$(NC)"
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)
 	@echo "$(BLUE)Compiling $<...$(NC)"
 	$(CC) $(CFLAGS) -c $< -o $@
 
