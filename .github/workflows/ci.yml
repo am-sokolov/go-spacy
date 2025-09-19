@@ -119,12 +119,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config
-          # Ensure Python dev headers are available
-          python3 -c "import distutils.util; print('Python dev headers OK')"
+          # Ensure Python dev headers are available (check sysconfig instead of distutils for Python 3.12+)
+          python3 -c "import sysconfig; print('Python dev headers OK:', sysconfig.get_path('include'))"
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install spacy
           python -m spacy download en_core_web_sm
 
@@ -180,7 +180,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev pkg-config
-          pip install --upgrade pip spacy
+          pip install --upgrade pip setuptools wheel
+          pip install spacy
           python -m spacy download en_core_web_sm
           python -m spacy download en_core_web_md
 
@@ -237,7 +238,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev pkg-config
-          pip install --upgrade pip spacy
+          pip install --upgrade pip setuptools wheel
+          pip install spacy
           python -m spacy download en_core_web_sm
           python -m spacy download en_core_web_md
 
@@ -306,7 +308,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev pkg-config
-          pip install --upgrade pip spacy
+          pip install --upgrade pip setuptools wheel
+          pip install spacy
 
           # Install multiple language models
           python -m spacy download en_core_web_sm
@@ -403,7 +406,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip spacy
+          pip install --upgrade pip setuptools wheel
+          pip install spacy
           python -m spacy download en_core_web_sm
 
       - name: Build release version
@@ -455,7 +459,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3-dev pkg-config
-          pip install --upgrade pip spacy
+          pip install --upgrade pip setuptools wheel
+          pip install spacy
           python -m spacy download en_core_web_sm
           python -m spacy download en_core_web_md
 
