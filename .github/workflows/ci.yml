@@ -75,20 +75,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-20.04, macos-13, macos-12]
-        go-version: ['1.20', '1.21', '1.22']
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        go-version: ['1.22', '1.23']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
         exclude:
           # Reduce matrix size for efficiency
-          - os: macos-13
-            go-version: '1.19'
-          - os: macos-12
-            go-version: '1.19'
           - os: ubuntu-20.04
-            python-version: '3.11'
+            python-version: '3.12'
           - os: macos-13
-            python-version: '3.8'
+            python-version: '3.9'
           - os: macos-12
-            python-version: '3.8'
+            python-version: '3.9'
 
     steps:
       - name: Checkout code
@@ -486,6 +482,11 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Check for Go dependency updates
         run: |
           go list -u -m all
@@ -496,6 +497,11 @@ jobs:
             echo "Dependencies can be updated"
             git diff go.mod go.sum
           fi
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-dev pkg-config
 
       - name: Run tests with latest dependencies
         run: |
