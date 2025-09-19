@@ -198,7 +198,7 @@ install-dev-deps: ## Install development dependencies
 	go install mvdan.cc/gofumpt@latest
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install golang.org/x/vuln/cmd/govulncheck@latest
-	go install github.com/securecodewarrior/github-action-gosec/cmd/gosec@latest
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
 
 # Git hooks
 setup-githooks: ## Set up Git hooks
