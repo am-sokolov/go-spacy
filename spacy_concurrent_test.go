@@ -27,7 +27,7 @@ func TestSimpleConcurrent(t *testing.T) {
 	// Run 5 goroutines, each processing texts sequentially
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go func(id int) {
+		go func(_ int) {
 			defer wg.Done()
 
 			for j := 0; j < 3; j++ {
