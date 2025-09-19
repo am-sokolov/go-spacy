@@ -14,7 +14,7 @@ GO_VERSION = 1.22
 PYTHON_VERSION = 3
 # Use pkg-config for better portability
 # Falls back to python-config if pkg-config is not available
-PYTHON_PKG_CONFIG = $(shell pkg-config --exists python3 && echo "pkg-config python3" || echo "python$(PYTHON_VERSION)-config")
+PYTHON_PKG_CONFIG = $(shell pkg-config --exists python3 && echo "pkg-config python3 --embed" || echo "python3-config")
 
 # Detect OS
 UNAME_S := $(shell uname -s)
@@ -45,7 +45,7 @@ CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG -march=native
 CFLAGS_PYTHON = $(shell $(PYTHON_PKG_CONFIG) --cflags 2>/dev/null || echo "")
 
 # Linker flags
-LDFLAGS_BASE = $(shell $(PYTHON_PKG_CONFIG) --libs 2>/dev/null || python$(PYTHON_VERSION)-config --ldflags)
+LDFLAGS_BASE = $(shell $(PYTHON_PKG_CONFIG) --libs --embed 2>/dev/null || python3-config --ldflags --embed 2>/dev/null || python$(PYTHON_VERSION)-config --ldflags)
 LDFLAGS = $(LDFLAGS_BASE) $(LDFLAGS_EXTRA)
 
 # Default build mode
