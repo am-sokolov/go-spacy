@@ -45,7 +45,24 @@ CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG -march=native
 CFLAGS_PYTHON = $(shell $(PYTHON_PKG_CONFIG) --cflags 2>/dev/null || python3-config --cflags 2>/dev/null || python$(PYTHON_VERSION)-config --cflags 2>/dev/null || echo "-I/usr/include/python$(PYTHON_VERSION)")
 
 # Linker flags
-LDFLAGS_BASE = $(shell $(PYTHON_PKG_CONFIG) --libs --embed 2>/dev/null || python3-config --ldflags --embed 2>/dev/null || python$(PYTHON_VERSION)-config --ldflags)
+# Python configuration - find the right python config tool
+PYTHON_CONFIG := $(shell which python3-config 2>/dev/null || which python-config 2>/dev/null || echo "python3-config")
+
+ifeq ($(UNAME_S),Darwin)
+    # On macOS, we need to ensure the library path is included
+    PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG) --ldflags --embed 2>/dev/null || $(PYTHON_CONFIG) --ldflags 2>/dev/null)
+    PYTHON_LIBS = $(shell $(PYTHON_CONFIG) --libs --embed 2>/dev/null || $(PYTHON_CONFIG) --libs 2>/dev/null)
+    PYTHON_PREFIX = $(shell $(PYTHON_CONFIG) --prefix 2>/dev/null)
+    # Combine flags and ensure library path is included
+    LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib
+else
+    # On Linux, ensure we get both ldflags and libs, with proper library path
+    PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG) --ldflags --embed 2>/dev/null || $(PYTHON_CONFIG) --ldflags 2>/dev/null)
+    PYTHON_LIBS = $(shell $(PYTHON_CONFIG) --libs --embed 2>/dev/null || $(PYTHON_CONFIG) --libs 2>/dev/null)
+    PYTHON_PREFIX = $(shell $(PYTHON_CONFIG) --prefix 2>/dev/null)
+    # Combine all flags - ldflags often doesn't include the actual library on Linux
+    LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib
+endif
 LDFLAGS = $(LDFLAGS_BASE) $(LDFLAGS_EXTRA)
 
 # Default build mode
