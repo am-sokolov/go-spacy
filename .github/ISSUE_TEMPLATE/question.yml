@@ -11,9 +11,9 @@ body:
         Thanks for your question! ❓
 
         Before submitting, please check:
-        - [Documentation](https://github.com/alexeysokolov/go-spacy/tree/main/docs)
-        - [API Reference](https://pkg.go.dev/github.com/alexeysokolov/go-spacy)
-        - [Existing discussions and issues](https://github.com/alexeysokolov/go-spacy/issues)
+        - [Documentation](https://github.com/am-sokolov/go-spacy/tree/main/docs)
+        - [API Reference](https://pkg.go.dev/github.com/am-sokolov/go-spacy)
+        - [Existing discussions and issues](https://github.com/am-sokolov/go-spacy/issues)
 
   - type: dropdown
     id: category
@@ -64,7 +64,7 @@ body:
 
         import (
             "fmt"
-            "github.com/alexeysokolov/go-spacy"
+            "github.com/am-sokolov/go-spacy"
         )
 
         func main() {

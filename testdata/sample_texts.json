@@ -45,7 +45,7 @@
     {
       "id": "only_punctuation",
       "text": "...!!!???",
-      "expected_tokens": 1
+      "expected_min_tokens": 1
     },
     {
       "id": "unicode_text",

@@ -1,3 +1,152 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+*.prof
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+/build/
+/lib/*.so
+/lib/*.dylib
+/dist/
+
+# C/C++ object files
+*.o
+*.a
+*.obj
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Test coverage
+coverage.txt
+coverage.out
+coverage.html
+profile.out
+
+# Benchmarking
+benchmark*.txt
+cpu.prof
+mem.prof
+*.pprof
+
+# Documentation build
+docs/_build/
+docs/godoc/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node modules (if any JS tools are used)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Configuration files that might contain secrets
+.env.local
+.env.production
+.env.test
+config.local.*
+
+# Release artifacts
+*.tar.gz
+*.zip
+*.sha256
+
+# JetBrains IDEs
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio Code
+*.code-workspace
+
+# Vim
+.netrwhist
+
+# Emacs
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# Local development
+.local/
+local/
+.cache/
+
+# Docker
+.dockerignore
+Dockerfile.local
+
+# Miscellaneous
+*.bak
+*.orig
+*.rej
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Legacy directories (keep for compatibility)
 /node_modules/
 /spacy-go-wrapper/
-/.venv/
+/spacy-cpp/

@@ -262,7 +262,7 @@ jobs:
           echo "" >> CHANGELOG_TEMP.md
           echo "## 📦 Installation" >> CHANGELOG_TEMP.md
           echo '```bash' >> CHANGELOG_TEMP.md
-          echo "go get github.com/alexeysokolov/go-spacy@$VERSION" >> CHANGELOG_TEMP.md
+          echo "go get github.com/am-sokolov/go-spacy@$VERSION" >> CHANGELOG_TEMP.md
           echo '```' >> CHANGELOG_TEMP.md
           echo "" >> CHANGELOG_TEMP.md
           echo "## 🧪 Verification" >> CHANGELOG_TEMP.md
@@ -356,12 +356,12 @@ jobs:
 
             ## 🚀 Quick Start
             \`\`\`bash
-            go get github.com/alexeysokolov/go-spacy@${version}
+            go get github.com/am-sokolov/go-spacy@${version}
             \`\`\`
 
             ## 🔗 Links
             - [Release Page](https://github.com/${{ github.repository }}/releases/tag/${version})
-            - [Documentation](https://pkg.go.dev/github.com/alexeysokolov/go-spacy@${version})
+            - [Documentation](https://pkg.go.dev/github.com/am-sokolov/go-spacy@${version})
             - [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/INSTALLATION.md)
 
             Thank you to all contributors who made this release possible! 🙏

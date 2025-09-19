@@ -62,7 +62,7 @@ body:
 
         import (
             "fmt"
-            "github.com/alexeysokolov/go-spacy"
+            "github.com/am-sokolov/go-spacy"
         )
 
         func main() {

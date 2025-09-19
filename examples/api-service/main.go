@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	spacy "github.com/alexeysokolov/go-spacy"
+	spacy "github.com/am-sokolov/go-spacy"
 )
 
 type NLPService struct {
@@ -38,13 +38,13 @@ type AnalyzeRequest struct {
 }
 
 type AnalyzeResponse struct {
-	Tokens      []spacy.Token      `json:"tokens"`
-	Entities    []spacy.Entity     `json:"entities"`
-	Sentences   []string           `json:"sentences"`
-	NounChunks  []spacy.NounChunk  `json:"noun_chunks"`
-	TokenCount  int                `json:"token_count"`
-	EntityCount int                `json:"entity_count"`
-	ProcessedAt time.Time          `json:"processed_at"`
+	Tokens      []spacy.Token     `json:"tokens"`
+	Entities    []spacy.Entity    `json:"entities"`
+	Sentences   []string          `json:"sentences"`
+	NounChunks  []spacy.NounChunk `json:"noun_chunks"`
+	TokenCount  int               `json:"token_count"`
+	EntityCount int               `json:"entity_count"`
+	ProcessedAt time.Time         `json:"processed_at"`
 }
 
 func NewNLPService(modelName string) (*NLPService, error) {
@@ -198,9 +198,9 @@ func main() {
 		}
 
 		docs := map[string]interface{}{
-			"service":     "Go-Spacy NLP API",
-			"version":     "1.0.0",
-			"model":       modelName,
+			"service": "Go-Spacy NLP API",
+			"version": "1.0.0",
+			"model":   modelName,
 			"endpoints": map[string]interface{}{
 				"POST /tokenize": "Tokenize text into individual tokens",
 				"POST /entities": "Extract named entities from text",

@@ -4,6 +4,7 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/spacy-cpp" />
       <excludeFolder url="file://$MODULE_DIR$/spacy-go-wrapper" />
     </content>
     <orderEntry type="inheritedJdk" />
