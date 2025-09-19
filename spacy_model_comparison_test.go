@@ -118,7 +118,7 @@ func TestLanguageSpecificFeatures(t *testing.T) {
 func TestCrossLingualProcessing(t *testing.T) {
 	// Test processing the same concept in different languages
 	concepts := map[string]string{
-		"en_core_web_sm": "The capital of Germany is Berlin.",
+		"en_core_web_sm":  "The capital of Germany is Berlin.",
 		"de_core_news_sm": "Die Hauptstadt von Deutschland ist Berlin.",
 		"fr_core_news_sm": "La capitale de l'Allemagne est Berlin.",
 		"es_core_news_sm": "La capital de Alemania es Berlín.",

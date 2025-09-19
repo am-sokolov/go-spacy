@@ -99,74 +99,74 @@ func TestEnglishModels(t *testing.T) {
 // Test multiple language models
 func TestMultiLanguageSupport(t *testing.T) {
 	languages := []struct {
-		name     string
-		modelID  string
-		testText string
+		name      string
+		modelID   string
+		testText  string
 		minTokens int
-		entities []string
+		entities  []string
 	}{
 		{
-			name:     "English",
-			modelID:  "en_core_web_sm",
-			testText: "London is the capital of the United Kingdom.",
+			name:      "English",
+			modelID:   "en_core_web_sm",
+			testText:  "London is the capital of the United Kingdom.",
 			minTokens: 8,
-			entities: []string{"London", "United Kingdom"},
+			entities:  []string{"London", "United Kingdom"},
 		},
 		{
-			name:     "German",
-			modelID:  "de_core_news_sm",
-			testText: "Berlin ist die Hauptstadt von Deutschland.",
+			name:      "German",
+			modelID:   "de_core_news_sm",
+			testText:  "Berlin ist die Hauptstadt von Deutschland.",
 			minTokens: 6,
-			entities: []string{"Berlin", "Deutschland"},
+			entities:  []string{"Berlin", "Deutschland"},
 		},
 		{
-			name:     "French",
-			modelID:  "fr_core_news_sm",
-			testText: "Paris est la capitale de la France.",
+			name:      "French",
+			modelID:   "fr_core_news_sm",
+			testText:  "Paris est la capitale de la France.",
 			minTokens: 7,
-			entities: []string{"Paris", "France"},
+			entities:  []string{"Paris", "France"},
 		},
 		{
-			name:     "Spanish",
-			modelID:  "es_core_news_sm",
-			testText: "Madrid es la capital de España.",
+			name:      "Spanish",
+			modelID:   "es_core_news_sm",
+			testText:  "Madrid es la capital de España.",
 			minTokens: 6,
-			entities: []string{"Madrid", "España"},
+			entities:  []string{"Madrid", "España"},
 		},
 		{
-			name:     "Italian",
-			modelID:  "it_core_news_sm",
-			testText: "Roma è la capitale d'Italia.",
+			name:      "Italian",
+			modelID:   "it_core_news_sm",
+			testText:  "Roma è la capitale d'Italia.",
 			minTokens: 6,
-			entities: []string{"Roma", "Italia"},
+			entities:  []string{"Roma", "Italia"},
 		},
 		{
-			name:     "Portuguese",
-			modelID:  "pt_core_news_sm",
-			testText: "Lisboa é a capital de Portugal.",
+			name:      "Portuguese",
+			modelID:   "pt_core_news_sm",
+			testText:  "Lisboa é a capital de Portugal.",
 			minTokens: 6,
-			entities: []string{"Lisboa", "Portugal"},
+			entities:  []string{"Lisboa", "Portugal"},
 		},
 		{
-			name:     "Dutch",
-			modelID:  "nl_core_news_sm",
-			testText: "Amsterdam is de hoofdstad van Nederland.",
+			name:      "Dutch",
+			modelID:   "nl_core_news_sm",
+			testText:  "Amsterdam is de hoofdstad van Nederland.",
 			minTokens: 6,
-			entities: []string{"Amsterdam", "Nederland"},
+			entities:  []string{"Amsterdam", "Nederland"},
 		},
 		{
-			name:     "Chinese",
-			modelID:  "zh_core_web_sm",
-			testText: "北京是中国的首都。",
+			name:      "Chinese",
+			modelID:   "zh_core_web_sm",
+			testText:  "北京是中国的首都。",
 			minTokens: 4,
-			entities: []string{"北京", "中国"},
+			entities:  []string{"北京", "中国"},
 		},
 		{
-			name:     "Japanese",
-			modelID:  "ja_core_news_sm",
-			testText: "東京は日本の首都です。",
+			name:      "Japanese",
+			modelID:   "ja_core_news_sm",
+			testText:  "東京は日本の首都です。",
 			minTokens: 5,
-			entities: []string{"東京", "日本"},
+			entities:  []string{"東京", "日本"},
 		},
 	}
 

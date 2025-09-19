@@ -186,9 +186,9 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 // Benchmark different language processing
 func BenchmarkMultiLanguage(b *testing.B) {
 	languages := []struct {
-		name    string
-		model   string
-		text    string
+		name  string
+		model string
+		text  string
 	}{
 		{"English", "en_core_web_sm", "The quick brown fox jumps over the lazy dog."},
 		{"German", "de_core_news_sm", "Der schnelle braune Fuchs springt über den faulen Hund."},

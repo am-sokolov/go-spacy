@@ -86,7 +86,9 @@ func (s *NLPService) handleTokenize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func (s *NLPService) handleEntities(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +115,9 @@ func (s *NLPService) handleEntities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func (s *NLPService) handleAnalyze(w http.ResponseWriter, r *http.Request) {
@@ -150,10 +154,12 @@ func (s *NLPService) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
-func (s *NLPService) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (s *NLPService) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	// Simple health check
 	response := map[string]interface{}{
 		"status":    "healthy",
@@ -162,7 +168,9 @@ func (s *NLPService) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func main() {
@@ -213,7 +221,9 @@ func main() {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(docs)
+		if err := json.NewEncoder(w).Encode(docs); err != nil {
+			log.Printf("Error encoding docs: %v", err)
+		}
 	})
 
 	log.Printf("Starting Go-Spacy API server on port %s with model %s", port, modelName)

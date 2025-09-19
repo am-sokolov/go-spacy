@@ -147,6 +147,7 @@ package spacy
 #include "spacy_wrapper.h"
 */
 import "C"
+
 import (
 	"fmt"
 	"unsafe"

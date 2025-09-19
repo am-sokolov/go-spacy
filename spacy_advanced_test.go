@@ -14,23 +14,23 @@ func TestNounChunks(t *testing.T) {
 	defer nlp.Close()
 
 	tests := []struct {
-		name     string
-		text     string
+		name      string
+		text      string
 		minChunks int
 	}{
 		{
-			name:     "Simple sentence",
-			text:     "The quick brown fox jumps over the lazy dog.",
+			name:      "Simple sentence",
+			text:      "The quick brown fox jumps over the lazy dog.",
 			minChunks: 2, // At least "the quick brown fox" and "the lazy dog"
 		},
 		{
-			name:     "Complex sentence",
-			text:     "Apple Inc., a multinational technology company, develops consumer electronics.",
+			name:      "Complex sentence",
+			text:      "Apple Inc., a multinational technology company, develops consumer electronics.",
 			minChunks: 3,
 		},
 		{
-			name:     "Technical text",
-			text:     "Machine learning algorithms process large datasets to identify patterns.",
+			name:      "Technical text",
+			text:      "Machine learning algorithms process large datasets to identify patterns.",
 			minChunks: 3,
 		},
 	}
@@ -93,12 +93,12 @@ func TestVectorsAndSimilarity(t *testing.T) {
 
 	// Test similarity
 	similarityTests := []struct {
-		text1 string
-		text2 string
+		text1  string
+		text2  string
 		minSim float64
 	}{
-		{"cat", "dog", 0.5},      // Animals should be somewhat similar
-		{"king", "queen", 0.5},    // Royal terms should be similar
+		{"cat", "dog", 0.5},        // Animals should be somewhat similar
+		{"king", "queen", 0.5},     // Royal terms should be similar
 		{"cat", "automobile", 0.2}, // Should have lower similarity
 	}
 
