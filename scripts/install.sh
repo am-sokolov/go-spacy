@@ -193,8 +193,16 @@ verify_system_deps() {
 install_python_deps() {
     log_info "Installing Python dependencies..."
 
+    # Upgrade pip and install setuptools/wheel for Python 3.12+
+    $PYTHON_CMD -m pip install --upgrade pip setuptools wheel
+
     # Install spacy
-    $PYTHON_CMD -m pip install --user spacy
+    # Use --user flag only if not in virtual env or CI
+    if [ -n "$GITHUB_ACTIONS" ] || [ -n "$VIRTUAL_ENV" ] || [ -n "$CI" ]; then
+        $PYTHON_CMD -m pip install spacy
+    else
+        $PYTHON_CMD -m pip install --user spacy
+    fi
 
     # Download English model
     log_info "Downloading English language model..."
@@ -241,8 +249,11 @@ get_python_config() {
             fatal "Neither pkg-config nor python-config available"
         fi
 
-        PYTHON_CFLAGS=$($PYTHON_CONFIG_CMD --cflags)
-        PYTHON_LIBS=$($PYTHON_CONFIG_CMD --ldflags)
+        PYTHON_CFLAGS=$($PYTHON_CONFIG_CMD --cflags 2>/dev/null)
+        # For proper linking, we need both ldflags and libs with --embed flag
+        PYTHON_LIBS=$($PYTHON_CONFIG_CMD --ldflags --embed 2>/dev/null || $PYTHON_CONFIG_CMD --ldflags 2>/dev/null)
+        # On some systems, we also need --libs
+        PYTHON_LIBS="$PYTHON_LIBS $($PYTHON_CONFIG_CMD --libs --embed 2>/dev/null || $PYTHON_CONFIG_CMD --libs 2>/dev/null || echo '')"
         log_success "Using $PYTHON_CONFIG_CMD for Python detection"
     fi
 

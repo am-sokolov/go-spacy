@@ -9,7 +9,9 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 # Build configuration
-CC = g++
+# Allow overriding CC and CXX from environment (for cross-compilation)
+CC ?= g++
+CXX ?= $(CC)
 GO_VERSION = 1.22
 PYTHON_VERSION = 3
 # Use pkg-config for better portability
@@ -41,12 +43,22 @@ OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 # Compiler flags
 CFLAGS_BASE = -Wall -Wextra -fPIC -std=c++17 -I$(INCLUDE_DIR)
 CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0 -DDEBUG
-CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG -march=native
-CFLAGS_PYTHON = $(shell $(PYTHON_PKG_CONFIG) --cflags 2>/dev/null || python3-config --cflags 2>/dev/null || python$(PYTHON_VERSION)-config --cflags 2>/dev/null || echo "-I/usr/include/python$(PYTHON_VERSION)")
+# Use -march=native only for local builds, not in CI (causes compatibility issues)
+ifdef GITHUB_ACTIONS
+    CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG
+else ifdef CI
+    CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG
+else
+    CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG -march=native
+endif
+CFLAGS_PYTHON = $(shell $(PYTHON_PKG_CONFIG) --cflags 2>/dev/null || python3-config --cflags 2>/dev/null || python-config --cflags 2>/dev/null || python$(PYTHON_VERSION)-config --cflags 2>/dev/null || echo "")
 
 # Linker flags
 # Python configuration - find the right python config tool
+# In GitHub Actions, python3 might be symlinked, so we check for python too
 PYTHON_CONFIG := $(shell which python3-config 2>/dev/null || which python-config 2>/dev/null || echo "python3-config")
+# Get Python version for library naming
+PYTHON_VER := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "3.9")
 
 ifeq ($(UNAME_S),Darwin)
     # On macOS, we need to ensure the library path is included
@@ -54,14 +66,24 @@ ifeq ($(UNAME_S),Darwin)
     PYTHON_LIBS = $(shell $(PYTHON_CONFIG) --libs --embed 2>/dev/null || $(PYTHON_CONFIG) --libs 2>/dev/null)
     PYTHON_PREFIX = $(shell $(PYTHON_CONFIG) --prefix 2>/dev/null)
     # Combine flags and ensure library path is included
-    LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib
+    # Also check for framework installations on macOS and Homebrew paths
+    LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib -L/Library/Frameworks/Python.framework/Versions/$(PYTHON_VER)/lib -L/usr/local/lib -L/opt/homebrew/lib
 else
     # On Linux, ensure we get both ldflags and libs, with proper library path
     PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG) --ldflags --embed 2>/dev/null || $(PYTHON_CONFIG) --ldflags 2>/dev/null)
     PYTHON_LIBS = $(shell $(PYTHON_CONFIG) --libs --embed 2>/dev/null || $(PYTHON_CONFIG) --libs 2>/dev/null)
     PYTHON_PREFIX = $(shell $(PYTHON_CONFIG) --prefix 2>/dev/null)
     # Combine all flags - ldflags often doesn't include the actual library on Linux
-    LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib
+    # For GitHub Actions, also check common Python paths
+    # Note: We add multiple -L paths; the linker will ignore non-existent ones
+    # Include GitHub Actions Python paths if we're in CI
+    ifdef GITHUB_ACTIONS
+        # In GitHub Actions, find the Python library path dynamically
+        GITHUB_PYTHON_PATH := $(shell find /opt/hostedtoolcache/Python -maxdepth 3 -name "lib" -type d 2>/dev/null | head -1 || echo "")
+        LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib -L/usr/lib/x86_64-linux-gnu $(if $(GITHUB_PYTHON_PATH),-L$(GITHUB_PYTHON_PATH))
+    else
+        LDFLAGS_BASE = $(PYTHON_LDFLAGS) $(PYTHON_LIBS) -L$(PYTHON_PREFIX)/lib -L/usr/lib/x86_64-linux-gnu
+    endif
 endif
 LDFLAGS = $(LDFLAGS_BASE) $(LDFLAGS_EXTRA)
 
@@ -166,19 +188,31 @@ test: test-unit ## Run all tests (alias for test-unit)
 
 test-unit: $(TARGET) ## Run unit tests
 	@echo "$(GREEN)Running unit tests...$(NC)"
-	export CGO_ENABLED=1 && go test $(GO_TEST_FLAGS) ./...
+	export CGO_ENABLED=1 && \
+	export LD_LIBRARY_PATH="$(PWD)/lib:$$LD_LIBRARY_PATH" && \
+	export DYLD_LIBRARY_PATH="$(PWD)/lib:$$DYLD_LIBRARY_PATH" && \
+	go test $(GO_TEST_FLAGS) ./...
 
 test-integration: $(TARGET) ## Run integration tests
 	@echo "$(GREEN)Running integration tests...$(NC)"
-	export CGO_ENABLED=1 && go test $(GO_TEST_FLAGS) -tags=integration ./...
+	export CGO_ENABLED=1 && \
+	export LD_LIBRARY_PATH="$(PWD)/lib:$$LD_LIBRARY_PATH" && \
+	export DYLD_LIBRARY_PATH="$(PWD)/lib:$$DYLD_LIBRARY_PATH" && \
+	go test $(GO_TEST_FLAGS) -tags=integration ./...
 
 test-benchmark: $(TARGET) ## Run benchmark tests
 	@echo "$(GREEN)Running benchmark tests...$(NC)"
-	export CGO_ENABLED=1 && go test -bench=. -benchmem -run=^$$ ./...
+	export CGO_ENABLED=1 && \
+	export LD_LIBRARY_PATH="$(PWD)/lib:$$LD_LIBRARY_PATH" && \
+	export DYLD_LIBRARY_PATH="$(PWD)/lib:$$DYLD_LIBRARY_PATH" && \
+	go test -bench=. -benchmem -run=^$$ ./...
 
 test-coverage: $(TARGET) ## Run tests with coverage
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
-	export CGO_ENABLED=1 && go test $(GO_TEST_FLAGS) -coverprofile=coverage.out -covermode=atomic ./...
+	export CGO_ENABLED=1 && \
+	export LD_LIBRARY_PATH="$(PWD)/lib:$$LD_LIBRARY_PATH" && \
+	export DYLD_LIBRARY_PATH="$(PWD)/lib:$$DYLD_LIBRARY_PATH" && \
+	go test $(GO_TEST_FLAGS) -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 	go tool cover -func=coverage.out | tail -n 1
 
@@ -217,6 +251,7 @@ validate: lint check-format security-scan test-unit ## Run all validation checks
 # Dependency management
 install-deps: ## Install runtime dependencies
 	@echo "$(GREEN)Installing Python dependencies...$(NC)"
+	pip install --user --upgrade pip setuptools wheel
 	pip install --user spacy
 	python -m spacy download en_core_web_sm
 
@@ -338,7 +373,7 @@ info: ## Show build information
 	@echo "  Python Config: $(PYTHON_PKG_CONFIG)"
 	@echo "  Target: $(TARGET)"
 	@echo "  Go Version: $(shell go version)"
-	@echo "  Python Version: $(shell python --version 2>&1 || echo 'Not found')"
+	@echo "  Python Version: $(shell python3 --version 2>&1 || python --version 2>&1 || echo 'Not found')"
 
 # Legacy targets for backward compatibility
 install-deps-legacy:

@@ -229,13 +229,21 @@ function Install-Python {
 function Install-PythonPackages {
     Write-Info "Installing Python packages..."
 
-    # Upgrade pip
-    Write-Info "Upgrading pip..."
-    & $global:PYTHON_CMD -m pip install --user --upgrade pip
+    # Upgrade pip and install setuptools/wheel for Python 3.12+
+    Write-Info "Upgrading pip and installing build tools..."
+    if ($env:GITHUB_ACTIONS -or $env:CI) {
+        & $global:PYTHON_CMD -m pip install --upgrade pip setuptools wheel
+    } else {
+        & $global:PYTHON_CMD -m pip install --user --upgrade pip setuptools wheel
+    }
 
     # Install spacy
     Write-Info "Installing spacy..."
-    & $global:PYTHON_CMD -m pip install --user spacy
+    if ($env:GITHUB_ACTIONS -or $env:CI) {
+        & $global:PYTHON_CMD -m pip install spacy
+    } else {
+        & $global:PYTHON_CMD -m pip install --user spacy
+    }
 
     # Download language model
     Write-Info "Downloading English language model..."
