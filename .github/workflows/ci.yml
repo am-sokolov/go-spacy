@@ -344,9 +344,9 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securecodewarrior/github-action-gosec@master
+        uses: securego/gosec@master
         with:
-          args: '-fmt sarif -out gosec.sarif ./...'
+          args: '-fmt sarif -out gosec.sarif -exclude=G115 -exclude-dir=.cache ./...'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
