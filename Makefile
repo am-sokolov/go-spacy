@@ -10,7 +10,7 @@ GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknow
 
 # Build configuration
 CC = g++
-GO_VERSION = 1.21
+GO_VERSION = 1.22
 PYTHON_VERSION = 3
 # Use pkg-config for better portability
 # Falls back to python-config if pkg-config is not available
